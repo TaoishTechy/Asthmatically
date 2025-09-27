@@ -59,7 +59,7 @@ save
 ## 2) File & Persistence Layout
 
 - **Memory directory:** configurable. Use a path you can write to (local user space).  
-  - Example good value: `/home/<you>/Documents/Axiomatically/memory`  
+  - Example good value: `/home/<you>/Documents/Asthmatically/memory`  
   - Avoid `/mnt/data` outside sandbox environments; it may be read‑only on some systems.
 - **Config keys (persisted via `save`):**
   - `sigma_target` *(float)*: target stability threshold (e.g., 1.8–2.3)
@@ -76,7 +76,7 @@ PermissionError: [Errno 13] Permission denied: '/mnt/data'
 ```
 run (inside the CLI or pre‑configure):
 ```
-config memdir=/home/<you>/Documents/Axiomatically/memory
+config memdir=/home/<you>/Documents/Asthmatically/memory
 save
 ```
 Create the folder if missing.
@@ -407,4 +407,4 @@ save
 ## 15) License & Attribution
 
 - Internal research prototype; adapt as needed.
-- Please credit **Axiomatically** when reusing modes, metric definitions, and prompt decks.
+- Please credit **Asthmatically** when reusing modes, metric definitions, and prompt decks.
