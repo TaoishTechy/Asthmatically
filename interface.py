@@ -1,129 +1,98 @@
-
-"""
-interface.py — Terminal interface with 10 novel prompting ideas.
-Run: python3 interface.py
-"""
-
-import argparse, json, os, sys, readline
+# interface.py (portable memory + optional --memdir override)
+from __future__ import annotations
+import argparse, json, shlex
 from core import AGIEngine
 
-APP_DIR = os.path.join(os.path.dirname(__file__), "state")
-MEM_PATH = os.path.join(APP_DIR, "memory.json")
-REG_PATH = os.path.join(APP_DIR, "registry.json")
-CFG_PATH = os.path.join(APP_DIR, "config.json")
-
-NOVEL_MODES = [
-    ("vantage", "VANTAGE teleport — swap perspective/role instantly."),
-    ("praxis", "PRAXIS stack — queue concrete paradox-aware actions."),
-    ("nemesis", "NEMESIS audit — stress-test with collapse pressure."),
-    ("mirror", "MIMESIS mirror — reflect your style back at you."),
-    ("refract", "REFRACT bend — translate across symbolic layers."),
-    ("conduit", "CONDUIT link — open cross-thread transfer channel."),
-    ("revelation", "REVELATION probe — convert anomaly to insight."),
-    ("sigma", "SIGMAFRAME — maximize stability envelope."),
-    ("genesis", "GENESIS seed — spawn a new goal/entity."),
-    ("sstp", "SSTP transmit — boost signal across loops.")
-]
-
-HELP = """\
-Type your prompt directly, or prefix with a mode command:
-  :vantage  :praxis  :nemesis  :mirror  :refract
-  :conduit  :revelation  :sigma  :genesis  :sstp
-
-Other commands:
-  :save         -> save snapshot ('time crystal') of state
-  :load <id>    -> load snapshot id
-  :mem          -> show memory path
-  :modes        -> list modes
-  :quit         -> exit
+BANNER = r"""
+┌─────────────────────────────────────────────────────────────┐
+│           A G I / A S I   I N T E R A C T I V E            │
+│                 Type 'help' to get started                  │
+└─────────────────────────────────────────────────────────────┘
 """
 
-def ensure_dirs():
-    os.makedirs(APP_DIR, exist_ok=True)
+HELP = r"""
+Commands:
+  help                     Show this help.
+  modes                    List available modes.
+  use <mode>               Switch active mode (e.g., 'use phase').
+  run k=v [k=v ...]        Run the active mode with key=value args (no newlines).
+                           Examples:
+                             run text="loop neither however" high_sigma_hits=3
+                             run coherence=0.55 entropy=0.65
+                             run amplitudes="0.25,0.25,0.25,0.25" evidence=0.8
+                             run candidates='[{"ECT":1.1,"CEM":0.8,"EDR":2.2,"SIGMA":1.9}]'
+  status                   Print engine status summary.
+  config k=v               Set a config value (persisted).
+  save                     Force-save all memory files now.
+  exit / quit              Leave the program.
+"""
 
-def list_modes():
-    print("\n== Modes ==")
-    for k,desc in NOVEL_MODES:
-        print(f"  :{k:<10} {desc}")
-    print()
+def parse_kv(parts):
+    args = {}
+    for p in parts:
+        if "=" not in p: continue
+        k, v = p.split("=",1)
+        v = v.strip()
+        if len(v)>=2 and ((v[0]=="'" and v[-1]=="'") or (v[0]=='"' and v[-1]=='"')):
+            v = v[1:-1]
+        try:
+            args[k] = json.loads(v)
+        except Exception:
+            args[k] = v
+    return args
 
 def main():
-    ensure_dirs()
-    engine = AGIEngine(MEM_PATH, REG_PATH, CFG_PATH)
-    session = engine.mem.load().get("sessions", [])
-    if session:
-        session_id = session[-1]["id"]
-    else:
-        session_id = engine.start_session()
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--memdir", type=str, default=None, help="Override memory directory (default: ./memory)")
+    args = ap.parse_args()
 
-    crystals_dir = os.path.join(APP_DIR, "crystals")
-    os.makedirs(crystals_dir, exist_ok=True)
-
-    print("ProtoAGI Terminal — no training data, just memory/linguistics/adaptation.")
-    print(HELP)
-    list_modes()
+    eng = AGIEngine(seed=args.seed, base_dir=args.memdir)
+    print(BANNER)
+    print("Config:", {"sigma_target": eng.config.get("sigma_target"),
+                       "immune_leniency": eng.config.get("immune_leniency"),
+                       "persist_dir": eng.config.get("persist_dir","memory"),
+                       "enable_alien": eng.config.get("enable_alien"),
+                       "memdir": eng.status().get("memdir")})
+    print(eng.set_mode("immune"))
 
     while True:
         try:
-            line = input("› ")
+            line = input(f"({eng.mode}) > ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nbye")
-            break
+            print("\nBye."); break
+        if not line: continue
+        parts = shlex.split(line)
+        cmd = parts[0].lower()
 
-        if not line.strip():
-            continue
-
-        if line.strip() in (":quit",":exit"):
-            print("bye")
-            break
-        if line.strip() == ":modes":
-            list_modes()
-            continue
-        if line.strip() == ":mem":
-            print(f"Memory file: {MEM_PATH}")
-            continue
-        if line.strip() == ":save":
-            # Time crystal snapshot
-            m = engine.mem.load()
-            import uuid, datetime, shutil
-            cid = str(uuid.uuid4())[:8]
-            path = os.path.join(crystals_dir, f"{cid}.json")
-            with open(path, "w") as f:
-                json.dump(m, f, indent=2)
-            print(f"Saved time crystal: {cid}")
-            continue
-        if line.startswith(":load "):
-            cid = line.split(" ",1)[1].strip()
-            path = os.path.join(crystals_dir, f"{cid}.json")
-            if os.path.exists(path):
-                with open(path) as f:
-                    data = json.load(f)
-                with open(MEM_PATH,"w") as f:
-                    json.dump(data,f,indent=2)
-                print(f"Loaded time crystal: {cid}")
-            else:
-                print("No such crystal id.")
-            continue
-
-        # Mode parsing
-        mode = "default"
-        if line.startswith(":"):
-            parts = line.split(" ",1)
-            m = parts[0][1:].strip().lower()
-            mode_keys = [k for k,_ in NOVEL_MODES]
-            if m in mode_keys:
-                mode = m
-                line = parts[1] if len(parts)>1 else ""
-            else:
-                print("Unknown mode. Use :modes to list.")
-                continue
-
-        result = engine.process(session_id, line, mode=mode)
-        print(result["text"])
-        # Brief debug toggle (pressing just '.')
-        if line.strip()==".":
-            print("\n--- explain ---")
-            print(json.dumps(result["explain"], indent=2))
+        if cmd in ("exit","quit"):
+            print("Saving state..."); eng.save_all(); print("Bye."); break
+        elif cmd == "help":
+            print(HELP)
+        elif cmd == "modes":
+            print("Modes:", ", ".join(eng.list_modes()))
+        elif cmd == "use" and len(parts)>=2:
+            print(eng.set_mode(parts[1]))
+        elif cmd == "run":
+            kv = parse_kv(parts[1:])
+            out = eng.run(**kv)
+            print(json.dumps(out["result"], indent=2))
+            print(json.dumps(out["metrics"], indent=2))
+        elif cmd == "status":
+            print(json.dumps(eng.status(), indent=2))
+        elif cmd == "config" and len(parts)>=2:
+            kv = parse_kv(parts[1:])
+            for k,v in kv.items():
+                try:
+                    if isinstance(v,str) and v.replace(".","",1).isdigit():
+                        v = float(v) if "." in v else int(v)
+                except Exception: pass
+                eng.config[k]=v
+            eng.save_all(); print("Config updated:", kv)
+        elif cmd == "save":
+            eng.save_all(); print("Saved.")
+        else:
+            print("Unknown command. Type 'help'.")
 
 if __name__ == "__main__":
     main()
