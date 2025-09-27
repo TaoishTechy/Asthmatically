@@ -1,4 +1,4 @@
-# Axiomatically — AGI/ASI Interactive Engine
+# Asthmatically — AGI/ASI Interactive Engine
 
 > **TL;DR**  
 > This repo provides a CLI-driven cognitive engine with multiple modes (immune, translate, praxis, hologram, quantum, phase, semantic, multiscale, compress, orchestrate, alien). It tracks **ECT** (Executive Control), **CEM** (Coherence/Entropy Mix), **EDR** (Emergent Drift/Discovery Rate), and **Σ** (Stability). You can set targets (e.g., `sigma_target`), switch modes, run single‑line commands, and export state. This README explains setup, commands, metrics, modes, guardrails, and includes extensive prompt decks to test limits (12/24/48) and emergence behavior.
